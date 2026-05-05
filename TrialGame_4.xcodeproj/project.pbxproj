@@ -16,8 +16,10 @@
 			membershipExceptions = (
 				Actions.sks,
 				Assets.xcassets,
+				Entities.swift,
 				GameScene.sks,
 				GameScene.swift,
+				Player.swift,
 			);
 			target = 4F925C9C2FA4995400D878E2 /* TrialGame_4 iOS */;
 		};

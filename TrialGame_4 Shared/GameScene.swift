@@ -1,125 +1,153 @@
 //
 //  GameScene.swift
-//  TrialGame_4 Shared
+//  Latch
 //
-//  Created by Amadeus Gavriel on 01/05/26.
+//  Created by Gemini CLI
 //
 
 import SpriteKit
 
+/// The main scene for Latch.
+/// You will build the scrolling logic and player interaction here.
 class GameScene: SKScene {
     
+    // MARK: - Properties
+    // Define your worldNode and variables here.
+    let worldNode = SKNode()
+    var gameSpeed: CGFloat = 5.0
+    var player : Player!
     
-    fileprivate var label : SKLabelNode?
-    fileprivate var spinnyNode : SKShapeNode?
-
     
-    class func newGameScene() -> GameScene {
-        // Load 'GameScene.sks' as an SKScene.
-        guard let scene = SKScene(fileNamed: "GameScene") as? GameScene else {
-            print("Failed to load GameScene.sks")
-            abort()
-        }
-        
-        // Set the scale mode to scale to fit the window
-        scene.scaleMode = .aspectFill
-        
-        return scene
-    }
+    // MARK: - Setup Logic
     
-    func setUpScene() {
-        // Get label node from scene and store it for use later
-        self.label = self.childNode(withName: "//helloLabel") as? SKLabelNode
-        if let label = self.label {
-            label.alpha = 0.0
-            label.run(SKAction.fadeIn(withDuration: 2.0))
-        }
-        
-        // Create shape node to use during mouse interaction
-        let w = (self.size.width + self.size.height) * 0.05
-        self.spinnyNode = SKShapeNode.init(rectOf: CGSize.init(width: w, height: w), cornerRadius: w * 0.3)
-        
-        if let spinnyNode = self.spinnyNode {
-            spinnyNode.lineWidth = 4.0
-            spinnyNode.run(SKAction.repeatForever(SKAction.rotate(byAngle: CGFloat(Double.pi), duration: 1)))
-            spinnyNode.run(SKAction.sequence([SKAction.wait(forDuration: 0.5),
-                                              SKAction.fadeOut(withDuration: 0.5),
-                                              SKAction.removeFromParent()]))
-        }
-    }
-    
+    /// This runs once when the scene is first shown.
     override func didMove(to view: SKView) {
-        self.setUpScene()
-    }
-
-    func makeSpinny(at pos: CGPoint, color: SKColor) {
-        if let spinny = self.spinnyNode?.copy() as! SKShapeNode? {
-            spinny.position = pos
-            spinny.strokeColor = color
-            self.addChild(spinny)
+        
+        
+        // TODO: Initialize your world hierarchy and add nodes.
+        self.backgroundColor = .gray
+        self.addChild(worldNode)
+        
+        let rock = Rock()
+        rock.setup()
+        rock.position = CGPoint(x: 0, y: 0)
+        rock.zPosition = 1
+    
+        
+        let animal = Buffalo()
+        animal.setup()
+        animal.position = CGPoint(x : 0, y: 50)
+        animal.zPosition = 1
+        
+        player = Player()
+        player.setup()
+        player.position = CGPoint(x: 0, y: -size.height/4)
+        
+        
+        
+        self.addChild(player)
+        worldNode.addChild(rock)
+        worldNode.addChild(animal)
+        print(size.height)
+        print(size.width)
+        
+        let wait = SKAction.wait(forDuration: 3.0)
+        
+        let spawn = SKAction.run {
+            [weak self] in
+            self?.spawnEntity()
         }
+        
+        let sequence = SKAction.sequence([wait,spawn])
+        let repeatForever = SKAction.repeatForever(sequence)
+        
+        self.run(repeatForever)
     }
     
+    
+    // MARK: - Game Loop
+    
+    /// This runs approximately 60 times per second.
     override func update(_ currentTime: TimeInterval) {
-        // Called before each frame is rendered
+        // TODO: Implement the scrolling treadmill logic here.
+        player.update(sceneSize: self.size)
+        
+        for child in player.children {
+            if let animal = child as? Animal {
+                animal.update(sceneSize: self.size)
+            }
+        }
+    
+        for child in worldNode.children {
+            if let node = child as? ScrollingNode {
+                node.update(sceneSize: self.size)
+                
+                if node.position.y < -size.height / 2 - 200 {
+                    node.removeFromParent()
+                    print("Node Removed from Parent!")
+                }
+                
+                if let animal = node as? Animal {
+                    if player.intersects(animal) && !animal.isRidden && player.isJumping {
+                        
+                        animal.isRidden = true
+                        
+                        animal.removeFromParent()
+                        player.addChild(animal)
+                        animal.position = .zero
+                        animal.zPosition = -1
+                        
+                        player.removeAllActions()
+                        player.setScale(1.0)
+                        player.isJumping = false
+                        
+                        
+                    }
+                }
+            }
+        }
+    }
+    func spawnEntity() {
+        let isAnimal = Bool.random()
+        let newNode: ScrollingNode
+        
+        if isAnimal {
+            newNode = Buffalo()
+        } else {
+            newNode = Rock()
+        }
+        
+        newNode.setup()
+        
+        let randX = CGFloat.random(in: -200...200)
+        newNode.position = CGPoint(x: randX, y: size.height/2 + 100)
+        
+        worldNode.addChild(newNode)
     }
 }
 
-#if os(iOS) || os(tvOS)
-// Touch-based event handling
-extension GameScene {
 
+
+// MARK: - Input Handling
+#if os(iOS) || os(tvOS)
+extension GameScene {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if let label = self.label {
-            label.run(SKAction.init(named: "Pulse")!, withKey: "fadeInOut")
-        }
-        
-        for t in touches {
-            self.makeSpinny(at: t.location(in: self), color: SKColor.green)
-        }
+        // Start interaction
     }
     
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches {
-            self.makeSpinny(at: t.location(in: self), color: SKColor.blue)
-        }
+        // Handle steering
+        guard let touch = touches.first else { return }
+        let location = touch.location(in: self)
+        
+        player.targetX = location.x
+        
+        
     }
     
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches {
-            self.makeSpinny(at: t.location(in: self), color: SKColor.red)
-        }
+        // Handle jumping
+        player.jump(worldNode: worldNode)
     }
-    
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches {
-            self.makeSpinny(at: t.location(in: self), color: SKColor.red)
-        }
-    }
-    
-   
 }
 #endif
-
-#if os(OSX)
-// Mouse-based event handling
-extension GameScene {
-
-    override func mouseDown(with event: NSEvent) {
-        if let label = self.label {
-            label.run(SKAction.init(named: "Pulse")!, withKey: "fadeInOut")
-        }
-        self.makeSpinny(at: event.location(in: self), color: SKColor.green)
-    }
-    
-    override func mouseDragged(with event: NSEvent) {
-        self.makeSpinny(at: event.location(in: self), color: SKColor.blue)
-    }
-    
-    override func mouseUp(with event: NSEvent) {
-        self.makeSpinny(at: event.location(in: self), color: SKColor.red)
-    }
-
-}
-#endif
-
