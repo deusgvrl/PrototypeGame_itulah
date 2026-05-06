@@ -1,0 +1,18 @@
+# SECRETS (Do not upload)
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+
+# JUNK/HISTORY (Do not scan)
+.git/
+node_modules/
+dist/
+build/
+.build/
+
+# IDE METADATA
+.DS_Store
+*.xcodeproj/
+*.xcworkspace/
